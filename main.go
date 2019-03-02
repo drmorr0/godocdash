@@ -31,18 +31,26 @@ var silent bool
 var docsetDir string
 
 func main() {
-	name, icon := parseFlag()
-	docsetDir = name + ".docset"
+	silentInput := flag.Bool("silent", false, "Silent mode (only print error)")
+	filter := flag.String("filter", "", "Specify a subdirectory you want to extract the docs for")
+	name := flag.String("name", "GoDoc", "Set docset name")
+	icon := flag.String("icon", "", "Docset icon .png path")
+
+	flag.Parse()
+
+	silent = *silentInput
+
+	docsetDir = *name + ".docset"
 
 	// icon
-	err := writeIcon(icon)
+	err := writeIcon(*icon)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
 	// plist
-	err = genPlist(name)
+	err = genPlist(*name)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -71,7 +79,7 @@ func main() {
 	}()
 
 	// get package list
-	packages, err := getPackages(host)
+	packages, err := getPackages(host, *filter)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -97,18 +105,6 @@ func main() {
 
 	// download pages and insert DB indexes
 	grabPackages(tx.Stmt(stmt), host, packages)
-}
-
-func parseFlag() (name string, icon string) {
-	silentInput := flag.Bool("silent", false, "Silent mode (only print error)")
-	nameInput := flag.String("name", "GoDoc", "Set docset name")
-	iconInput := flag.String("icon", "", "Docset icon .png path")
-
-	flag.Parse()
-	silent = *silentInput
-	name = *nameInput
-	icon = *iconInput
-	return
 }
 
 func writeIcon(p string) (err error) {
@@ -170,7 +166,7 @@ func createDB() (db *sql.DB, err error) {
 
 func runGodoc() (cmd *exec.Cmd, host string, err error) {
 	// get a free port
-	l, err := net.Listen("tcp", ":0")
+	l, err := net.Listen("tcp", "")
 	if err != nil {
 		return
 	}
@@ -197,17 +193,20 @@ func runGodoc() (cmd *exec.Cmd, host string, err error) {
 	host = "http://" + tryHost
 
 	// check port is valid now
+	// godoc server has to index data, it needs some time to boot up
+	// TODO: figure out if there is any /ready endpoint available
+	time.Sleep(5 * time.Second)
 	for i := 0; i < 10; i++ {
 		time.Sleep(500 * time.Millisecond)
-		_, err = http.Get(host)
-		if err == nil {
+		r, err := http.Get(host)
+		if err == nil && r.StatusCode == http.StatusOK {
 			break
 		}
 	}
 	return
 }
 
-func getPackages(host string) (packages []string, err error) {
+func getPackages(host string, filter string) (packages []string, err error) {
 	doc, err := goquery.NewDocument(host + "/pkg/")
 	if err != nil {
 		return
@@ -219,12 +218,9 @@ func getPackages(host string) (packages []string, err error) {
 		}
 
 		// ignore standard packages as there's official go docset already
-		domain := strings.Split(packageName, "/")[0]
-		if !strings.Contains(domain, ".") {
-			return
+		if strings.Contains(packageName, ".") && strings.Contains(packageName, filter) {
+			packages = append(packages, packageName)
 		}
-
-		packages = append(packages, packageName)
 	})
 	return
 }
@@ -271,8 +267,9 @@ func grabPackage(wg *sync.WaitGroup, stmt *sql.Stmt, packageName string, url str
 	}
 
 	// skip directories
-	pkgDir := doc.Find("div.pkg-dir").First()
-	if len(pkgDir.Nodes) > 0 {
+	pkgDir := doc.Find("h1").First()
+	c, err := pkgDir.Html()
+	if !strings.Contains(c, "Package") {
 		return
 	}
 	info.IsPackage = true
