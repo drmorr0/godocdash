@@ -46,23 +46,30 @@ GOPATH=/another/gopath godocdash
 You can also change the docset name and icon, or mute the output:
 
 ```
-GOPATH=/another/gopath godocdash -icon 'new_icon.png' -name 'different name' -silent
+GOPATH=/another/gopath godocdash --options.silent --docset.name AnotherGodocName --docset.icon new_icon.png --docset.filters github.com/user/pkg,github.com/org/pkg
 ```
 
 It's also possible to specify a filter in order to generate a subset of the
-documentation, by using the `-filter` flag.
+documentation, by using the `--docset.filter` flag.
 
 Command line flags:
 
 ```
 $ godocdash -h
 Usage of godocdash:
-   -filter string
-          Specify a subdirectory you want to extract the docs for
-    -icon string
-          Docset icon .png path
-    -name string
-          Set docset name (default "GoDoc")
-    -silent
-          Silent mode (only print error)
+      --docset.filters string   Comma separated filters, e.g. github.com/user/pkg1,user/pkg2
+      --docset.icon string      Docset icon .png path
+      --docset.name string      Set docset name (default "GoDoc")
+      --options.silent          Silent mode (only print error)
+```
+
+Configuration can be provided via toml file (by default it should be placed in
+the current directory or in /tmp):
+```toml
+[Docset]
+filters = ["user/arepo", "github.com/anotheruser/another-repo"]
+name = "adocsetname"
+
+[Options]
+silent = true
 ```

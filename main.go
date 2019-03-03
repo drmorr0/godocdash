@@ -22,6 +22,8 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
 const splitter = "=========================================================\n"
@@ -31,26 +33,49 @@ var silent bool
 var docsetDir string
 
 func main() {
-	silentInput := flag.Bool("silent", false, "Silent mode (only print error)")
-	filter := flag.String("filter", "", "Specify a subdirectory you want to extract the docs for")
-	name := flag.String("name", "GoDoc", "Set docset name")
-	icon := flag.String("icon", "", "Docset icon .png path")
 
-	flag.Parse()
+	{
+		flag.Bool("options.silent", false, "Silent mode (only print error)")
+		flag.String("docset.name", "GoDoc", "Set docset name")
+		flag.String("docset.icon", "", "Docset icon .png path")
+		cmdlineFilters := flag.String("docset.filters", "", "Comma separated filters, e.g. github.com/user/pkg1,user/pkg2")
 
-	silent = *silentInput
+		pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+		pflag.Parse()
+		if err := viper.BindPFlags(pflag.CommandLine); err != nil {
+			panic(fmt.Errorf("Fatal error config input: %s \n", err))
+		}
 
-	docsetDir = *name + ".docset"
+		if cmdlineFilters != nil && *cmdlineFilters != "" {
+			docsetFilters := strings.Split(*cmdlineFilters, ",")
+			viper.Set("Docset.filters", docsetFilters)
+		}
+
+		viper.SetConfigName("godocset-config")
+		viper.AddConfigPath("/tmp")
+		viper.AddConfigPath(".")
+		err := viper.ReadInConfig()
+		if err != nil {
+			panic(fmt.Errorf("Fatal error config file: %s \n", err))
+		}
+	}
+
+	silent = viper.GetBool("Options.silent")
+	name := viper.GetString("Docset.name")
+	icon := viper.GetString("Docset.icon")
+	filter := viper.GetStringSlice("Docset.filters")
+
+	docsetDir = name + ".docset"
 
 	// icon
-	err := writeIcon(*icon)
+	err := writeIcon(icon)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
 	// plist
-	err = genPlist(*name)
+	err = genPlist(name)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -79,7 +104,7 @@ func main() {
 	}()
 
 	// get package list
-	packages, err := getPackages(host, *filter)
+	packages, err := getPackages(host, filter)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -206,7 +231,7 @@ func runGodoc() (cmd *exec.Cmd, host string, err error) {
 	return
 }
 
-func getPackages(host string, filter string) (packages []string, err error) {
+func getPackages(host string, filter []string) (packages []string, err error) {
 	doc, err := goquery.NewDocument(host + "/pkg/")
 	if err != nil {
 		return
@@ -218,11 +243,23 @@ func getPackages(host string, filter string) (packages []string, err error) {
 		}
 
 		// ignore standard packages as there's official go docset already
-		if strings.Contains(packageName, ".") && strings.Contains(packageName, filter) {
+		if strings.Contains(packageName, ".") && matchFilter(packageName, filter) {
 			packages = append(packages, packageName)
 		}
 	})
 	return
+}
+
+func matchFilter(keyword string, filter []string) bool {
+	if len(filter) == 0 {
+		return true
+	}
+	for _, f := range filter {
+		if strings.Contains(keyword, f) {
+			return true
+		}
+	}
+	return false
 }
 
 func grabPackages(stmt *sql.Stmt, host string, packages []string) {

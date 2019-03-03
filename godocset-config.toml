@@ -1,0 +1,6 @@
+[Docset]
+filters = ["user/arepo", "github.com/anotheruser/another-repo"]
+name = "adocsetname"
+
+[Options]
+silent = true
