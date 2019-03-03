@@ -224,13 +224,15 @@ func runGodoc() (cmd *exec.Cmd, host string, err error) {
 
 	// check port is valid now
 	// godoc server has to index data, it needs some time to boot up
-	// TODO: figure out if there is any /ready endpoint available
-	time.Sleep(5 * time.Second)
-	for i := 0; i < 10; i++ {
+	// check pkg page is ready now
+	for i := 0; i < 15; i++ {
 		time.Sleep(500 * time.Millisecond)
-		r, err := http.Get(host)
-		if err == nil && r.StatusCode == http.StatusOK {
-			break
+		doc, err := goquery.NewDocument(host + "/pkg/")
+		if err == nil {
+			// "Scan is not yet complete. Please retry after a few moments"
+			if doc.Find("span.alert").Size() == 0 {
+				break
+			}
 		}
 	}
 	return
