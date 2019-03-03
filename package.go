@@ -93,7 +93,7 @@ func (info *packageInfo) ParseType(doc *goquery.Document) {
 }
 
 func (info *packageInfo) ParseFunc(doc *goquery.Document) {
-	doc.Find("h3").Each(func(index int, selection *goquery.Selection) {
+	doc.Find("h3").Add("h2").Each(func(index int, selection *goquery.Selection) {
 		text := selection.Text()
 		sign := "func "
 		if !strings.HasPrefix(text, sign) {
