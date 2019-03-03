@@ -38,6 +38,7 @@ func main() {
 		flag.Bool("options.silent", false, "Silent mode (only print error)")
 		flag.String("docset.name", "GoDoc", "Set docset name")
 		flag.String("docset.icon", "", "Docset icon .png path")
+		flag.String("docset.output", "", "Output path to store the docset, e.g. /tmp")
 		cmdlineFilters := flag.String("docset.filters", "", "Comma separated filters, e.g. github.com/user/pkg1,user/pkg2")
 
 		pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
@@ -63,9 +64,13 @@ func main() {
 	silent = viper.GetBool("Options.silent")
 	name := viper.GetString("Docset.name")
 	icon := viper.GetString("Docset.icon")
+	output := viper.GetString("Docset.output")
 	filter := viper.GetStringSlice("Docset.filters")
 
-	docsetDir = name + ".docset"
+	if output != "" && !strings.HasSuffix(output, "/") {
+		output = output + "/"
+	}
+	docsetDir = output + name + ".docset"
 
 	// icon
 	err := writeIcon(icon)

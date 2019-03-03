@@ -1,6 +1,7 @@
 [Docset]
 filters = ["user/arepo", "github.com/anotheruser/another-repo"]
 name = "adocsetname"
+output = "/tmp"
 
 [Options]
 silent = true
