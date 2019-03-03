@@ -260,6 +260,12 @@ func matchFilter(keyword string, filter []string) bool {
 		return true
 	}
 	for _, f := range filter {
+		if strings.HasSuffix(f, "*") {
+			wildcard := strings.TrimSuffix(strings.TrimPrefix(f, "github.com/"), "*")
+			if strings.Contains(keyword, wildcard) {
+				return true
+			}
+		}
 		if strings.Contains(keyword, f) {
 			return true
 		}
