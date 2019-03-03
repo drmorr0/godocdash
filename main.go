@@ -292,35 +292,44 @@ func grabPackages(stmt *sql.Stmt, host string, packages []string) {
 }
 
 func grabPackage(wg *sync.WaitGroup, stmt *sql.Stmt, packageName string, url string) {
+	var info *packageInfo
+	for i := 0; i < 5; i++ {
+		if info = tryGrabPackage(stmt, packageName, url); info.Err != nil {
+			time.Sleep(time.Second * 2)
+		} else {
+			break
+		}
+	}
+	info.Print()
 	defer wg.Done()
+}
 
+func tryGrabPackage(stmt *sql.Stmt, packageName string, url string) *packageInfo {
 	info := &packageInfo{Name: packageName}
-	defer info.Print()
 
-	var err error
-	defer func() {
+	infoError := func(err error) *packageInfo {
 		info.Err = err
-	}()
+		return info
+	}
 
 	resp, err := http.Get(url)
 	if err != nil {
-		return
+		return infoError(err)
 	}
 	defer resp.Body.Close()
 	buf, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return
+		return infoError(err)
 	}
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(buf))
 	if err != nil {
-		return
+		return infoError(err)
 	}
 
 	// skip directories
 	pkgDir := doc.Find("h1").First()
-	c, err := pkgDir.Html()
-	if !strings.Contains(c, "Package") {
-		return
+	if !strings.HasPrefix(strings.TrimSpace(pkgDir.Text()), "Package") {
+		return infoError(err)
 	}
 	info.IsPackage = true
 
@@ -328,16 +337,18 @@ func grabPackage(wg *sync.WaitGroup, stmt *sql.Stmt, packageName string, url str
 	replaceLinks(doc, documentPath)
 	newHTML, err := goquery.OuterHtml(doc.Selection)
 	if err != nil {
-		return
+		return infoError(err)
 	}
 
 	err = writeFile(documentPath, strings.NewReader(newHTML))
 	if err != nil {
-		return
+		return infoError(err)
 	}
 
 	info.Parse(doc)
 	err = info.WriteInsert(stmt)
+
+	return info
 }
 
 func grabLib(host string) {
