@@ -277,14 +277,20 @@ func matchFilter(keyword string, filter []string) bool {
 
 func grabPackages(stmt *sql.Stmt, host string, packages []string) {
 	wg := &sync.WaitGroup{}
+	total := 0
 	for _, packageName := range packages {
 		wg.Add(1)
+		total += 1
 		go grabPackage(
 			wg,
 			stmt,
 			strings.TrimRight(packageName, "/"),
 			host+"/pkg/"+packageName,
 		)
+		if total >= 10 {
+			wg.Wait()
+			total = 0
+		}
 	}
 
 	wg.Wait()
