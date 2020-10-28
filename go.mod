@@ -1,4 +1,4 @@
-module github.com/thoeni/godocdash
+module github.com/arusso/godocdash
 
 go 1.12
 
