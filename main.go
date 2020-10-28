@@ -31,6 +31,7 @@ const insertSQL = "INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES (?
 
 var silent bool
 var docsetDir string
+var goRoot string
 
 func main() {
 
@@ -39,6 +40,7 @@ func main() {
 		flag.String("docset.name", "GoDoc", "Set docset name")
 		flag.String("docset.icon", "", "Docset icon .png path")
 		flag.String("docset.output", "", "Output path to store the docset, e.g. /tmp")
+		flag.String("go.goroot", "", "Override goroot")
 		cmdlineFilters := flag.String("docset.filters", "", "Comma separated filters, e.g. github.com/user/pkg1,user/pkg2")
 
 		pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
@@ -66,11 +68,16 @@ func main() {
 	icon := viper.GetString("Docset.icon")
 	output := viper.GetString("Docset.output")
 	filter := viper.GetStringSlice("Docset.filters")
+	goroot := viper.GetString("Go.goroot")
 
 	if output != "" && !strings.HasSuffix(output, "/") {
 		output = output + "/"
 	}
 	docsetDir = output + name + ".docset"
+
+	if goroot != "" {
+		goRoot = "-goroot=" + goroot
+	}
 
 	// icon
 	err := writeIcon(icon)
@@ -210,7 +217,7 @@ func runGodoc() (cmd *exec.Cmd, host string, err error) {
 
 	// try running godoc on this port
 	tryHost := "localhost:" + strconv.Itoa(tcpAddr.Port)
-	cmd = exec.Command("godoc", "-http="+tryHost)
+	cmd = exec.Command("godoc", "-http="+tryHost, goRoot)
 	if !silent {
 		cmd.Stderr = os.Stderr
 		cmd.Stdout = os.Stdout
