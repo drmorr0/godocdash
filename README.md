@@ -20,7 +20,7 @@ find the package entries to grab the godoc pages, and generate the docset.
 ## Installing
 
 ```
-go get github.com/thoeni/godocdash
+go install github.com/drmorr0/godocdash@latest
 ```
 
 And make sure `godoc` command is in your `$PATH`.

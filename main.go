@@ -217,7 +217,10 @@ func runGodoc() (cmd *exec.Cmd, host string, err error) {
 
 	// try running godoc on this port
 	tryHost := "localhost:" + strconv.Itoa(tcpAddr.Port)
-	cmd = exec.Command("godoc", "-http="+tryHost, goRoot)
+	cmd = exec.Command("godoc", "-http="+tryHost)
+	if goRoot != "" {
+		cmd.Args = append(cmd.Args, goRoot)
+	}
 	if !silent {
 		cmd.Stderr = os.Stderr
 		cmd.Stdout = os.Stdout
